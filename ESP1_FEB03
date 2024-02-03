@@ -97,17 +97,17 @@ BLYNK_WRITE(V10) {
 }
 
 BLYNK_WRITE(V6) {
-  heater_switch = param.asInt();
+  heater_switch = !param.asInt();
   digitalWrite(HEATER_PIN, heater_switch);
 }
 
 BLYNK_WRITE(V5) {
-  aerator_switch = param.asInt();
+  aerator_switch = !param.asInt();
   digitalWrite(AERATOR_PIN, aerator_switch);
 }
 
 BLYNK_WRITE(V7) {
-  uv_switch = param.asInt();
+  uv_switch = !param.asInt();
   digitalWrite(WP_UV_PIN, uv_switch);
 
   if (mode == 1){ // if manual
@@ -209,8 +209,8 @@ void setup() {
   timer.setInterval(10000L, sendTDS);
   timer.setInterval(3000L,sendDOSensor);
   timer.setInterval(3000L, sendTemp);
-  timer.setInterval(1000L, runAerator);
-  timer.setInterval(1000L, runHeater);
+  //timer.setInterval(1000L, runAerator);
+  //timer.setInterval(1000L, runHeater);
   //timer.setInterval(1000L, runRAS);
 
 }
@@ -280,6 +280,12 @@ void sendTDS(){
 void loop(){
   //runAerator();
   //delay(1000);
+  runAerator();
+  delay(5000);
+  
+  runHeater();
+  delay(5000);
+  
   Blynk.run();
   timer.run();
 }
