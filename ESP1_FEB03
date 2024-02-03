@@ -47,7 +47,7 @@ float saltvalue;
 #define READ_TEMP (25) //Current water temperature ℃, Or temperature sensor function
 
 //Single point calibration needs to be filled CAL1_V and CAL1_T
-#define CAL1_V (165) //mv
+#define CAL1_V (167) //mv
 #define CAL1_T (25)   //℃
 //Two-point calibration needs to be filled CAL2_V and CAL2_T
 //CAL1 High temperature point, CAL2 Low temperature point
@@ -114,16 +114,16 @@ BLYNK_WRITE(V7) {
 
   }
   else{
-    if (uv_switch == 1){
-      digitalWrite(WP_UV_PIN, HIGH);
-      Blynk.virtualWrite(V7, HIGH);
+    if (uv_switch == 0){
+      digitalWrite(WP_UV_PIN, LOW); // BALIKTAD
+      Blynk.virtualWrite(V7, 1);
       delay(5000); // set delay for turning on ras
 
-      digitalWrite(WP_UV_PIN, LOW);
-      Blynk.virtualWrite(V7, LOW);
+      digitalWrite(WP_UV_PIN, HIGH); // BALIKTAD
+      Blynk.virtualWrite(V7, 0);
     }
     else{
-      Blynk.virtualWrite(V7, LOW);
+      Blynk.virtualWrite(V7, 0);
     }
   }
 }
@@ -140,13 +140,13 @@ void runAerator(){
 
   }
   else{
-    if (DOValue/1000 < 4){
+    if (DOValue/1000 > 4){ // SUPPOSED TO BE LESS THAN
       digitalWrite(AERATOR_PIN, HIGH);
-      Blynk.virtualWrite(V5, HIGH);
+      Blynk.virtualWrite(V5, 0);
     }
     else{
       digitalWrite(AERATOR_PIN, LOW);
-      Blynk.virtualWrite(V5, LOW);
+      Blynk.virtualWrite(V5, 1);
     }
  }
 }
@@ -163,13 +163,13 @@ void runHeater(){
 
   }
   else{
-    if (temperatureC < 26){
+    if (temperatureC > 26){ // SUPPOSED TO BE GREATER THAN HAHA
       digitalWrite(HEATER_PIN, HIGH);
-      Blynk.virtualWrite(V6, HIGH);
+      Blynk.virtualWrite(V6, 0);
     }
     else{
       digitalWrite(HEATER_PIN, LOW);
-      Blynk.virtualWrite(V6, LOW);
+      Blynk.virtualWrite(V6, 1);
     }
  }
 }
@@ -209,9 +209,9 @@ void setup() {
   timer.setInterval(10000L, sendTDS);
   timer.setInterval(3000L,sendDOSensor);
   timer.setInterval(3000L, sendTemp);
-  //timer.setInterval(1000L, runAerator);
-  //timer.setInterval(1000L, runHeater);
-  //timer.setInterval(1000L, runRAS);
+  timer.setInterval(1000L, runAerator);
+  timer.setInterval(1000L, runHeater);
+  //timer.setInterval(10000L, runRAS);
 
 }
 
@@ -280,11 +280,11 @@ void sendTDS(){
 void loop(){
   //runAerator();
   //delay(1000);
-  runAerator();
-  delay(5000);
+  //runAerator();
+  //delay(5000);
   
-  runHeater();
-  delay(5000);
+  //runHeater();
+  //delay(5000);
   
   Blynk.run();
   timer.run();
