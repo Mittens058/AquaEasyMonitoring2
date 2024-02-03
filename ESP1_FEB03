@@ -10,6 +10,8 @@
 #include <WiFiClient.h>
 #include <BlynkSimpleEsp32.h>
 
+#include <MovingAverageFilter.h>
+
 char auth[] = BLYNK_AUTH_TOKEN;
 char ssid[] = "TP-Link_Extender";  // type your wifi name
 char pass[] = "";  // type your wifi password
@@ -84,12 +86,14 @@ DallasTemperature DS18B20(&oneWire);
 DFRobot_ESP_PH_WITH_ADC ph;
 
 //relay setup
-bool heater_switch = false;
-bool aerator_switch = false;
-bool uv_switch = false;
+bool heater_switch = true;
+bool aerator_switch = true;
+bool uv_switch = true;
 bool mode = false;
 
 float DOValue;
+
+MovingAverageFilter movingAverageFilter(30); // Adjust the filter size as needed
 
 // Blynk virtual pin handler for the button widget
 BLYNK_WRITE(V10) {
@@ -134,7 +138,12 @@ void runAerator(){
   ADC_Raw = analogRead(DO_PIN);
   ADC_Voltage = uint32_t(VREF) * ADC_Raw / ADC_RES;
 
-  float DOValue = readDO(ADC_Voltage, Temperaturet);
+  //float DOValue = readDO(ADC_Voltage, Temperaturet);
+
+  float currentDOValue = readDO(ADC_Voltage, Temperaturet);
+
+  // Apply moving average filter to the DO value
+  float DOValue = movingAverageFilter.process(currentDOValue);
 
   if (mode == 1){ // if manual
 
@@ -184,6 +193,8 @@ void setup() {
   // Temperature sensor setup
   DS18B20.begin();
 
+  movingAverageFilter = MovingAverageFilter(30); // Adjust the filter size as needed
+
   //TDS setup
   gravityTds.setPin(TdsSensorPin);
   gravityTds.setAref(3.3); //reference voltage on ADC, default 5.0V on Arduino UNO
@@ -198,12 +209,6 @@ void setup() {
   digitalWrite(WP_UV_PIN, uv_switch);
   digitalWrite(AERATOR_PIN, aerator_switch);
   digitalWrite(HEATER_PIN, heater_switch);
-
-
-
-  float DOValue = 5000;
-
-  Blynk.virtualWrite(V1, DOValue / 1000);  // Assuming V1 is used for DO display
 
   Blynk.begin(auth, ssid, pass);
   timer.setInterval(10000L, sendTDS);
@@ -222,7 +227,12 @@ void sendDOSensor(){
   ADC_Raw = analogRead(DO_PIN);
   ADC_Voltage = uint32_t(VREF) * ADC_Raw / ADC_RES;
 
-  float DOValue = readDO(ADC_Voltage, Temperaturet);
+  //float DOValue = readDO(ADC_Voltage, Temperaturet);
+
+  float currentDOValue = readDO(ADC_Voltage, Temperaturet);
+
+  // Apply moving average filter to the DO value
+  float DOValue = movingAverageFilter.process(currentDOValue);
 
   Serial.print("DO:\t");
   Serial.print(DOValue/1000);
