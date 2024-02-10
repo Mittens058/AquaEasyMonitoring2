@@ -1,0 +1,244 @@
+/// JUST TEST THIS FIX FOR NOW
+
+// for blynk ESP2 , FEB 09, 2024 3:51
+
+#define BLYNK_TEMPLATE_ID "TMPL6-kTjpHlS"
+#define BLYNK_TEMPLATE_NAME "AquaEasy Monitoring"
+#define BLYNK_AUTH_TOKEN "hleI-MTUdjZQOGpFs3WLWRWjc-V1u8QI"
+
+#define BLYNK_PRINT Serial
+
+//install libraries
+#include <WiFi.h>
+#include <WiFiClient.h>
+#include <BlynkSimpleEsp32.h>
+#include <Wire.h>
+//#include <Adafruit_Sensor.h>
+//#include <Adafruit_BME280.h>
+#include <ESP32Servo.h> // Library for Servo motor
+#include <Wire.h>
+
+char auth[] = BLYNK_AUTH_TOKEN;
+char ssid[] = "TP-Link_Extender";  // type your wifi name
+char pass[] = "";  // type your wifi password
+
+BlynkTimer timer; //import blynk timer function
+
+int timedelay = 500;
+
+#include <DFRobot_ESP_PH_WITH_ADC.h>
+
+#define PH_PIN 34         // Analog pin for pH sensor
+#define trigPin 25        //Set to GPIO 32
+#define echoPin 26        //set to GPIO 33
+#define servoPin 32       //Set to GPIO 35
+
+#define VREF 3.3    //VREF (mv)
+#define ADC_RES 4096 //ADC Resolution
+
+#define SOUND_SPEED 0.034
+#define CM_TO_INCH 0.393701
+
+long duration;
+float distanceCm;
+float distanceInch;
+
+// pH sensor setup
+DFRobot_ESP_PH_WITH_ADC ph;
+
+//SET RELAY PINS
+#define inlet_valve_relay 21
+#define pump_out_relay 16
+
+//define blynk switch variable
+int mode = 0;
+int inlet_switch = 0;
+int pump_out_switch = 0;
+//bool filter_switch = true;
+
+int percentage_level;
+
+float pHValue;
+
+
+//VALVE = 8, SMALL PUMP = 9, FILTER = 7, MANUAL CONTROL = 10
+
+BLYNK_WRITE(V10){
+  mode = param.asInt();
+}
+
+BLYNK_WRITE(V8){
+  inlet_switch = param.asInt();
+  digitalWrite(inlet_valve_relay, inlet_switch);
+}
+
+BLYNK_WRITE(V9){
+  pump_out_switch = param.asInt();
+  digitalWrite(pump_out_relay, pump_out_switch);
+}
+
+
+int dissolved_resend;
+int temp_resend;
+int salinity_resend;
+
+
+BLYNK_WRITE(V1){
+  int dissolved_resend = param.asInt();
+}
+
+BLYNK_WRITE(V0){
+  int temp_resend = param.asInt();
+}
+
+BLYNK_WRITE(V2){
+  int salinity_resend = param.asInt();
+}
+
+
+void resend(){
+  Blynk.virtualWrite(V13, dissolved_resend);
+
+  Blynk.virtualWrite(V14, temp_resend);
+
+  Blynk.virtualWrite(V15, salinity_resend);
+}
+
+//Water Level
+void ControlWaterLevel(){
+
+  // pH reading
+  float voltagePH = analogRead(PH_PIN) / 4096.0 * 3300;
+  float phValue = ph.readPH(voltagePH, 25);
+
+  ph.calibration(voltagePH, 25);
+  digitalWrite(trigPin, LOW);
+  delayMicroseconds(2);
+  // Sets the trigPin on HIGH state for 10 micro seconds
+  digitalWrite(trigPin, HIGH);
+  delayMicroseconds(10);
+  digitalWrite(trigPin, LOW);
+  
+  // Reads the echoPin, returns the sound wave travel time in microseconds
+  duration = pulseIn(echoPin, HIGH);
+  
+  // Calculate the distance
+  distanceCm = duration * SOUND_SPEED/2;
+  
+  // Convert to inches
+  distanceInch = distanceCm * CM_TO_INCH;
+
+  int sonicdistance = 8;
+
+  float percentage_level = 100 - ((distanceInch-4)/(sonicdistance))*100;
+
+  if (mode == 1){
+  }
+
+  else{
+    if (phValue < 7 && phValue > 8.5){
+      if(percentage_level < 30){ // less than
+          digitalWrite(inlet_valve_relay, HIGH);   // Turn on fill pump
+          digitalWrite(pump_out_relay, LOW);   // Turn off drain pump
+          delay(5000);  // Adjust the delay as needed for draining time
+      } 
+      else if (percentage_level > 90) { // more than
+          digitalWrite(pump_out_relay, HIGH);   // Turn on fill pump
+          digitalWrite(inlet_valve_relay, LOW);    // Turn off fill pump
+          delay(5000);  // Adjust the delay as needed for filling time
+      }
+      else{
+        digitalWrite(inlet_valve_relay,LOW);
+        digitalWrite(pump_out_relay, LOW);
+  
+        Blynk.virtualWrite(V9, 0);
+        Blynk.virtualWrite(V8, 0);
+
+        delay(3000);
+      }
+    }
+    else if (percentage_level < 95 && phValue >= 7 && phValue <=8.5){
+        digitalWrite(inlet_valve_relay, HIGH);
+        Blynk.virtualWrite(inlet_valve_relay, 1);   // Turn on fill pump
+        delay(5000);
+    }
+    else{
+        digitalWrite(inlet_valve_relay,LOW); // low
+        digitalWrite(pump_out_relay, LOW); // low
+        Blynk.virtualWrite(V9, 0);
+        Blynk.virtualWrite(V8, 0);
+        delay(5000);
+    }
+  }
+}
+
+void setup() {
+  Serial.begin(115200);
+
+  // pH sensor setup
+  ph.begin();
+
+  pinMode(trigPin, OUTPUT); // Sets the trigPin as an Output` 
+  pinMode(echoPin, INPUT); // Sets the echoPin as an Input
+
+  pinMode(inlet_valve_relay, OUTPUT); // Sets the inlet as an Output`
+  pinMode(pump_out_relay, OUTPUT); // Sets the pump as an Output`
+
+  //SET INITIAL RELAY STATE AT O
+  digitalWrite(inlet_valve_relay, inlet_switch);
+  digitalWrite(pump_out_relay, pump_out_switch);
+
+  Blynk.virtualWrite(V8,1); /// supposed to be low
+  Blynk.virtualWrite(V9,1);
+ 
+  Blynk.begin(auth, ssid, pass);
+
+  //SET TIMEER INTERVAL FOR EACH FUNCTION EX.1000L
+  timer.setInterval(5000L, sendPH);
+  timer.setInterval(3000L, sendWaterLevel);
+  //timer.setInterval(5000L, ControlWaterLevel);
+  timer.setInterval(100L, resend);
+
+}
+
+void sendPH(){
+  // pH reading
+  float voltagePH = analogRead(PH_PIN) / 4096.0 * 3300;
+  float phValue = ph.readPH(voltagePH, 25);
+  ph.calibration(voltagePH, 25);
+  Blynk.virtualWrite(V3,phValue);
+}
+
+void sendWaterLevel(){
+  // Clears the trigPin
+  digitalWrite(trigPin, LOW);
+  delayMicroseconds(2);
+  // Sets the trigPin on HIGH state for 10 micro seconds
+  digitalWrite(trigPin, HIGH);
+  delayMicroseconds(10);
+  digitalWrite(trigPin, LOW);
+  
+  // Reads the echoPin, returns the sound wave travel time in microseconds
+  duration = pulseIn(echoPin, HIGH);
+  
+  // Calculate the distance
+  distanceCm = duration * SOUND_SPEED/2;
+  
+  // Convert to inches
+  distanceInch = distanceCm * CM_TO_INCH;
+
+  int sonicdistance = 8;
+
+  float percentage_level = 100 - ((distanceInch-4)/(sonicdistance))*100;
+
+  Blynk.virtualWrite(V4,percentage_level);
+}
+
+void loop(){
+  
+  //ControlWaterLevel();
+  //8delay(5000);
+
+  Blynk.run();
+  timer.run();
+}
