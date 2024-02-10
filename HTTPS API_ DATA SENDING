@@ -1,0 +1,89 @@
+#define BLYNK_PRINT Serial
+
+#define BLYNK_TEMPLATE_ID "TMPL6-kTjpHlS"
+#define BLYNK_TEMPLATE_NAME "AquaEasy Monitoring"
+#define BLYNK_AUTH_TOKEN "n_nR6fFi1MIEU5bvtcOj1VEqK8qsqaDg"
+
+
+#include <WiFi.h>
+#include <WiFiClient.h>
+#include <BlynkSimpleEsp32_SSL.h>
+#include <HTTPClient.h>
+
+char auth[] = BLYNK_AUTH_TOKEN; // Auth token for this device
+char ssid[] = "TP-Link_Extender";
+char pass[] = "";
+
+String server_name = "http://sgp1.blynk.cloud/external/api/"; // <<< SEE COMMENTS
+
+String bridge_token_1 = "hleI-MTUdjZQOGpFs3WLWRWjc-V1u8QI"; // token for the receiving device
+
+float temperature = 10.0; // Used for testing, will be incremented in the "push_some_data" function
+
+BlynkTimer timer;
+
+void setup()
+{
+  Serial.begin(115200);
+  Blynk.begin(auth, ssid, pass);
+  timer.setInterval(10000L, push_some_data);
+}
+
+void loop()
+{
+  Blynk.run();
+  timer.run();
+}
+
+void push_some_data()
+{
+  api_bridge(bridge_token_1,V0,temperature); // Token for receiving device, virtual pin number, value to send
+
+  // Increment the temperature value to simulate changing data...  
+  temperature = temperature + 0.3;
+  if (temperature >= 50)
+  {
+    temperature = 10.0;
+  }
+}
+
+
+void api_bridge(String token, int virtual_pin, float value_to_send)
+{
+  HTTPClient http;
+
+  String server_path = server_name + "update?token=" + token + "&pin=v" + String(virtual_pin) + "&value=" +  float(value_to_send);
+
+  // Your Domain name with URL path or IP address with path
+  http.begin(server_path.c_str());
+  
+  // Send HTTP GET request
+  Serial.print("Sending ");
+  Serial.print(value_to_send);
+  Serial.print(" to pin V");
+  Serial.println(virtual_pin); 
+  
+  long request_time = millis();
+  int httpResponseCode = http.GET();
+  
+  if (httpResponseCode>0)
+  {
+    Serial.print("HTTP Response code: ");
+    Serial.println(httpResponseCode);
+    String payload = http.getString();
+  }
+  else
+  {
+    Serial.print("Error code: ");
+    Serial.print(httpResponseCode);
+    Serial.print(" <-----------------------------------");    
+  }
+ 
+  Serial.print("Response time = ");
+  Serial.print(millis() - request_time);
+  Serial.println(" milliseconds");
+  Serial.println(); 
+  
+  // Free resources
+  http.end();
+}
