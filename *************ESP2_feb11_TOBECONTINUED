@@ -48,9 +48,9 @@ float distanceInch;
 #define pump_out_relay 16
 
 //define blynk switch variable
-bool mode;
-bool inlet_switch;
-bool pump_out_switch;
+bool mode = false;
+bool inlet_switch = true ;
+bool pump_out_switch = true;
 //bool filter_switch = true;
 
 int percentage_level;
@@ -75,19 +75,16 @@ BLYNK_WRITE(V10){
 
 BLYNK_WRITE(V8){
   inlet_switch = !param.asInt();
-  //digitalWrite(inlet_valve_relay, inlet_switch);
+  digitalWrite(inlet_valve_relay, inlet_switch);
 }
 
 BLYNK_WRITE(V9){
   pump_out_switch = !param.asInt();
-  //digitalWrite(pump_out_relay, pump_out_switch);
+  digitalWrite(pump_out_relay, pump_out_switch);
 }
 
 //Water Level
 void ControlWaterLevel(){
-
-  digitalWrite(inlet_valve_relay, inlet_switch);
-  digitalWrite(pump_out_relay, pump_out_switch);
 
   // pH reading
   //float voltagePH = analogRead(PH_PIN) / 4096.0 * 3300;
@@ -122,12 +119,13 @@ void ControlWaterLevel(){
   }
 
   else{
+
     if (phValue < 7 || phValue > 8.5){
-      if (!draining) {
+      if (draining) {
         // Turn on the pump relay to drain water
         digitalWrite(pump_out_relay, LOW); //BLIKTAD LA HIGH KEN LOW
         Blynk.virtualWrite(V9, 1);
-        delay(10000); // Delay for stability, adjust as needed
+        delay(5000); // Delay for stability, adjust as needed
 
         if (percentage_level <= 30.0) {
           draining = false; // Stop draining, start filling
@@ -141,12 +139,12 @@ void ControlWaterLevel(){
         // Turn on the solenoid valve relay to fill water
         digitalWrite(inlet_valve_relay, LOW);
         Blynk.virtualWrite(V8, 1);
-        delay(10000); // Delay for stability, adjust as needed
+        delay(5000); // Delay for stability, adjust as needed
 
         if (percentage_level >= 90.0) {
           draining = true; // Stop filling, start draining
           digitalWrite(inlet_valve_relay, HIGH); // Turn off the solenoid valve
-          Blynk.virtualWrite(V9, 0);
+          Blynk.virtualWrite(V8, 0);
         }
       }
       // Update the virtual pin with the new water level
@@ -188,7 +186,7 @@ void setup() {
   //SET TIMEER INTERVAL FOR EACH FUNCTION EX.1000L
   timer.setInterval(5000L, sendPH);
   timer.setInterval(3000L, sendWaterLevel);
-  timer.setInterval(10000L, ControlWaterLevel);
+  timer.setInterval(5000L, ControlWaterLevel);
 
 }
 
