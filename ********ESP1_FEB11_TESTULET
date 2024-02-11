@@ -1,4 +1,4 @@
-//// ESP 1 feb 10
+//// ESP 1 feb 11, 12:32
 
 //for blynk
 #define BLYNK_TEMPLATE_ID "TMPL6-kTjpHlS"
@@ -96,7 +96,7 @@ bool aerator_switch = true;
 bool uv_switch = true;
 bool mode = true;
 
-bool switchState = false;  // Initial state of the switch
+// Initial state of the switch
 unsigned long startTime = 0;  // Variable to store the start time when the value goes below the threshold
 
 float DOValue;
@@ -151,6 +151,8 @@ void runAerator(){
   Temperaturet = (uint8_t)READ_TEMP;
   ADC_Raw = analogRead(DO_PIN);
   ADC_Voltage = uint32_t(VREF) * ADC_Raw / ADC_RES;
+  
+  bool switchState = aerator_switch;
 
   //float DOValue = readDO(ADC_Voltage, Temperaturet);
 
@@ -162,6 +164,7 @@ void runAerator(){
   if (mode == 1){ // if manual
 
   }
+  
   else{
     if (DOValue/1000 > 5){ // SUPPOSED TO BE LESS THAN
       if (!switchState) {  // Check if the switch is not already ON
@@ -260,7 +263,7 @@ void setup() {
   timer.setInterval(10000L, push_some_data_salinity);
   timer.setInterval(10000L, push_some_data_oxygen);
 
-  timer.setInterval(10000L, runAerator);
+  timer.setInterval(20000L, runAerator);
   timer.setInterval(10000L, runHeater);
   //timer.setInterval(10000L, runRAS);
 }
@@ -410,6 +413,3 @@ void api_bridge_oxygen(String token, int virtual_pin_oxygen, float value_to_send
   // Free resources
   http.end();
 }
-
-
-
