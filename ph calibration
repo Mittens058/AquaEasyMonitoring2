@@ -1,0 +1,40 @@
+
+#define PH_PIN 34
+float voltage,phValue,temperature = 25;
+
+float acidVoltage = 2800;
+float neutralVoltage = 2400;
+
+void setup() {
+  Serial.begin(115200);
+
+}
+
+void loop() {
+  readPHSensor();
+  delay(2000);
+}
+
+float readPHSensor() {
+   static unsigned long timepoint = millis();
+  if(millis()-timepoint>1000U){
+    timepoint = millis();
+        //temperature = readTemperature();         // read your temperature sensor to execute temperature compensation
+        voltage = (analogRead(PH_PIN))*(3300/4096.0);
+
+        float slope = (7.0-4.0)/((neutralVoltage-1500)/3.0 - (acidVoltage-1500)/3.0);
+        float intercept = 7.0 - slope*(neutralVoltage-1500)/3.0;
+
+        phValue = slope*(voltage-1500)/3.0+intercept;
+
+        Serial.print("Voltage: ");
+        Serial.print(voltage,1);
+        Serial.print("    pH:");
+        Serial.println(phValue,1);  
+  // Implement code to read pH sensor value
+  // ...
+  // Replace this placeholder with the actual code from your DFRobot pH sensor library
+  // or manual to read the sensor value correctly.
+  return phValue;
+  }
+}
